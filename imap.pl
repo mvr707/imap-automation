@@ -104,12 +104,28 @@ if ($q_current->{folder} and $q_current->{search}) {
 
 my $action = $q_current->{'action'} || '';
 
+my $batch_size = $q_current->{'batch_size'} || 1000;
+
 if ($action =~ /move_to_mail_folder:(\w+)/) {
 	my $move_to_mail_folder = $1;
-	for my $i (@$results) {
-		$client->move($move_to_mail_folder, $i) or die "ERROR: Can not move_to_mail_folder:$move_to_mail_folder " . $client->LastError . "\n"; 
-		print "\t $i moved to folder=$move_to_mail_folder\n";
+
+	my $count = @$results;
+	print "\nMoving $count messages to folder=$move_to_mail_folder\n";
+
+	while (0 != @$results) {
+		my $batch = [ splice(@$results, 0, $batch_size) ];
+		my $batch_count = @$batch;
+		$client->move($move_to_mail_folder, $batch) or die "ERROR: Can not move_to_mail_folder:$move_to_mail_folder " . $client->LastError . "\n"; 
+		print "\t $batch_count messages moved to folder=$move_to_mail_folder\n";
 	}
+	print "$count messages moved to folder=$move_to_mail_folder\n";
+
+#	for my $i (@$results) {
+#		$client->move($move_to_mail_folder, $i) or die "ERROR: Can not move_to_mail_folder:$move_to_mail_folder " . $client->LastError . "\n"; 
+#		print "\t $i moved to folder=$move_to_mail_folder\n";
+#	}
+
+	$client->expunge();
 	exit(0);
 }
 
