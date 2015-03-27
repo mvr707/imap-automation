@@ -1,4 +1,4 @@
-IMAP Comamndline Client Automation
+IMAP Commandline Client Automation
 ----------------------------------
 
 IMAP Automation Script
