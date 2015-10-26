@@ -14,3 +14,5 @@ Works with gmail as well as MS Exchange
 See link for more IMAP keywords
 
 https://www.fastmail.com/help/receive/search.html
+
+P.S: Make sure IO::Socket:SSL is installed!!!
