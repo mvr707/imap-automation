@@ -21,6 +21,7 @@ P.S:
   but a failing script does not tell you the root cause!
   
 2) IMAP servers for popular email providers
+
       Gmail : imap.gmail.com
       
       Yahoo: imap.mail.yahoo.com
