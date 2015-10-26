@@ -15,4 +15,12 @@ See link for more IMAP keywords
 
 https://www.fastmail.com/help/receive/search.html
 
-P.S: Make sure IO::Socket:SSL is installed!!!
+P.S: 
+1) Make sure IO::Socket:SSL is installed!!!
+  This is required for some emails services that make secure authentication, 
+  but a failing script does not tell you the root cause!
+  
+2) IMAP servers for popular email providers
+      Gmail : imap.gmail.com
+      Yahoo: imap.mail.yahoo.com
+      Hotmail: imap-mail.outlook.com
