@@ -22,5 +22,7 @@ P.S:
   
 2) IMAP servers for popular email providers
       Gmail : imap.gmail.com
+      
       Yahoo: imap.mail.yahoo.com
+      
       Hotmail: imap-mail.outlook.com
