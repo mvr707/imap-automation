@@ -132,6 +132,68 @@ sub print_summary()
         print $dt->tsv;
 }
 
+sub process_message
+{
+	my $msg_id = shift;
+
+        if ($msg_id) {
+                my $body_cached = {};
+                my $hr = $client->parse_headers([ $msg_id ], 'From', 'To', 'Subject', 'Date');
+                my $ddd = $hr->{$msg_id}{Date}[0];
+                $ddd =~ s/\(.*?\)//g;
+                my $ddd_std = eval { DateTime::Format::Mail->parse_datetime($ddd) } || $ddd;
+
+                my $mime = $client->message_string($msg_id) || print "\n\nERROR: Can not read $msg_id\n\n" && next;
+                my $body_string = $client->body_string($msg_id) || print "\n\nERROR: Can not read $msg_id\n\n" && next;
+
+                my $parsed = Email::MIME->new($mime);
+                my $message_structure = $parsed->debug_structure;
+                my $decoded = $parsed->body;
+                my @parts = $parsed->parts;
+
+                my @ct = map { $_->content_type } @parts;
+
+                my $stripper = Email::MIME::Attachment::Stripper->new($mime);
+                my $message = $stripper->message;
+                my $number_of_attachments = scalar($stripper->attachments);
+
+                print "[ATTACHMENTS]\n\n";
+                my $count = 1;
+                for my $i ($stripper->attachments) {
+                        print "$count) $i->{filename}, $i->{content_type}, ", length($i->{payload}), "\n"; ###filename, content_type, payload
+                        $count++
+                }
+                print "[/ATTACHMENTS]\n\n";
+
+                print <<EOF;
+Date: $ddd_std
+From: $hr->{$msg_id}{From}[0]
+To: $hr->{$msg_id}{To}[0]
+Subject: $hr->{$msg_id}{Subject}[0]
+
+NumberOfAttachments: $number_of_attachments
+MessageStructure: 
+$message_structure
+
+EOF
+                traverse_mime($msg_id, $parsed, "1", 0);
+
+                for my $i (sort keys %$body_cached) {
+                print <<EOF;
+
+[$i]
+$body_cached->{$i}
+[/$i]
+EOF
+                }
+
+                if ($config->{detail}) {
+                        print $mime;
+                }
+        }
+}
+
+
 if ($config->{folder} and $config->{search}) {
         print_summary();
 }
@@ -180,6 +242,14 @@ if ($action =~ /copy_to_local_file:(.*)$/) {
         my $copy_to_local_file = $1;
         $client->message_to_file($copy_to_local_file, @$results) or die "ERROR: Can not copy_to_local_file:$copy_to_local_file " . $client->LastError . "\n";
         print "\t Results copied to local file $copy_to_local_file\n";
+        exit(0);
+}
+
+if ($action eq 'copy_attachments') {
+        for my $i (@$results) {
+                print "processing $i ...\n";
+		process_message($i);
+        }
         exit(0);
 }
 
@@ -302,7 +372,7 @@ MessageStructure:
 $message_structure
 
 EOF
-                traverse_mime($parsed, "1", 0);
+                traverse_mime($msg_id, $parsed, "1", 0);
 
                 for my $i (sort keys %$body_cached) {
                 print <<EOF;
@@ -344,6 +414,7 @@ sub derive_prompt
 
 sub traverse_mime
 {
+	my $message_id = shift;
         my $in = shift;
         my $label = shift;
         my $depth = shift;
@@ -365,16 +436,27 @@ sub traverse_mime
 
         if ($config->{save} && 0 == $num_subparts) {
                 ### If 'save' folder is specified, save all attachments (only leaf nodes)
-                my $dirname = "$config->{save}/$config->{read}/";
+                my $dirname = "$config->{save}/$message_id/";
                 if (! -d $dirname) {
                         my $tmp = make_path($dirname);
                         if (!$tmp) {
                                 die "ERROR: Can not make path '$dirname'\n";
                         }
                 }
+
+		# save $id.mime
+                open(my $mh, ">$dirname/$message_id.mime");
+                binmode($mh);
+                print $mh $in->as_string;
+                close($mh);
+
                 my $filename = "$dirname/$label";
-                if ($ct =~ /name="(.*)"/) {
-                        $filename .= ".$1";
+                if ($ct =~ /name=(.*)/) {
+			my $tmp = $1;
+			if ($tmp =~ /"(.*?)"/) {
+				$tmp = $1;
+			}
+                        $filename .= ".$tmp";
                 } elsif ($ct =~ /(.*?)\//) {
                         $filename .= ".$1";
                 }
@@ -390,8 +472,7 @@ sub traverse_mime
 
         my $tmp = 1;
         for my $p (@sub_parts) {
-                traverse_mime($p, "$label.$tmp", $depth+1);
+                traverse_mime($message_id, $p, "$label.$tmp", $depth+1);
                 $tmp++;
         }
 }
-
